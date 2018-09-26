@@ -1,0 +1,142 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "uniquename": {
+      "type": "string",
+      "metadata": {
+        "description": "The unique name used for resource names associated with the controller"
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "azureuser",
+      "metadata": {
+        "description": "The controller admin username."
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The controller admin password."
+      }
+    },
+    "subnetId": {
+      "type": "string",
+      "metadata": {
+        "description": "The subnetID."
+      }
+    },
+    "vmCount": {
+      "type": "int",
+      "metadata": {
+        "description": "The number of vms to deploy."
+      }
+    },
+    "nfsCommaSeparatedAddresses": {
+      "type": "string",
+      "metadata": {
+        "description": "A comma separated list of Avere vFXT vServer IP Addresses."
+      }
+    },
+    "nfsExportPath": {
+      "type": "string",
+      "metadata": {
+        "description": "The path exported from the NFS server that will be mounted."
+      }
+    },
+    "nfsMountBaseDir": {
+      "type": "string",
+      "defaultValue": "/nfs",
+      "metadata": {
+        "description": "The base directory to contain all NFS mounts."
+      }
+    },
+    "bootstrapScriptPath": {
+      "type": "string",
+      "defaultValue": "/bootstrap/bootstrap.sh",
+      "metadata": {
+        "description": "The path on the mounted NFS share to the bootstrap script used for further installation"
+      }
+    }
+  },
+  "variables": {
+    "uniquename": "[concat(parameters('uniquename'))]",
+    "adminUsername": "[parameters('adminUsername')]",
+    "adminPassword": "[parameters('adminPassword')]",
+    "subnetId": "[parameters('subnetId')]",
+    "vmCount": "[parameters('vmCount')]",
+    "nfsCommaSeparatedAddresses": "[parameters('nfsCommaSeparatedAddresses')]",
+    "nfsExportPath": "[parameters('nfsExportPath')]",
+    "nfsMountBaseDir": "[parameters('nfsMountBaseDir')]",
+    "bootstrapScriptPath": "[parameters('bootstrapScriptPath')]",
+    "nicName": "[concat('vmnic-',variables('uniquename'))]",
+    "vmName": "[concat('vm-',variables('uniquename'))]",
+    "vmSize": "Standard_DS2_v2",
+    "bootstrapNFSIP": "[split(variables('nfsCommaSeparatedAddresses'),',')[0]]",
+    "bootstrapBaseDir": "[concat(variables('nfsMountBaseDir'),'/bootstrap')]"
+  },
+  "resources": [
+    {
+      "apiVersion": "2017-10-01",
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[concat(variables('nicName'), '-', copyIndex())]",
+      "location": "[resourceGroup().location]",
+      "copy": {
+        "name": "nicLoopNode",
+        "count": "[variables('vmCount')]"
+      },
+      "dependsOn": [],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetId')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "2017-12-01",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[concat(variables('vmName'), '-', copyIndex())]",
+      "location": "[resourceGroup().location]",
+      "copy": {
+        "name": "vmLoopNode",
+        "count": "[variables('vmCount')]"
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'), '-', copyIndex())]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('vmSize')]"
+        },
+        "osProfile": {
+          "computername": "[concat(variables('vmName'), '-', copyIndex())]",
+          "adminUsername": "[variables('adminUsername')]",
+          "adminPassword": "[variables('adminPassword')]",
+          "customData": "[base64(concat('#cloud-config\n\nruncmd:\n- echo \"40.71.10.130 avereeastus.servicebus.windows.net\" | tee -a /etc/hosts\n- mkdir -p ',variables('bootstrapBaseDir'),'\n- r=60 && for i in $(seq 1 $r); do mount -o \"hard,nointr,proto=tcp,mountproto=tcp,retry=30\" ',variables('bootstrapNFSIP'),':',variables('nfsExportPath'),' ',variables('bootstrapBaseDir'),' && break || [ $i == $r ] && break 0 || sleep 1; done \n- NFS_IP_CSV=\"',variables('nfsCommaSeparatedAddresses'),'\" NFS_PATH=\"',variables('nfsExportPath'),'\" BASE_DIR=\"',variables('nfsMountBaseDir'),'\" /bin/bash ',variables('bootstrapBaseDir'),'',variables('bootstrapScriptPath'),' 2>&1 | tee -a /var/log/bootstrap.log\n- umount ',variables('bootstrapBaseDir'),'\n- rmdir ',variables('bootstrapBaseDir'),''))]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "id": "/subscriptions/SUBSCRIPTIONID/resourceGroups/customimage/providers/Microsoft.Compute/images/customimage"
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(variables('nicName'), '-', copyIndex()))]"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {}
+}

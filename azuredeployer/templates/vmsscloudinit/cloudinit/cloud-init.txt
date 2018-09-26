@@ -1,0 +1,12 @@
+#cloud-config
+
+runcmd:
+- echo "wait until there is an IPv4 address, occasionally the IPv6 shows up first, and it causes NFS to hang when IPv4 eventually shows up"
+- r=60 && for i in $(seq 1 $r); do hostname -i | grep -Eo "[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}" && break || [ $i == $r ] && break 0 || sleep 5; done
+- r=60 && for i in $(seq 1 $r); do apt-get update && break || [ $i == $r ] && break 0 || sleep 5; done
+- r=60 && for i in $(seq 1 $r); do apt-get install -y nfs-common && break || [ $i == $r ] && break 0 || sleep 5; done
+- mkdir -p {{{bootstrapBaseDir}}}
+- r=60 && for i in $(seq 1 $r); do mount -o "hard,nointr,proto=tcp,mountproto=tcp,retry=30" {{{bootstrapNFSIP}}}:{{{nfsExportPath}}} {{{bootstrapBaseDir}}} && break || [ $i == $r ] && break 0 || sleep 1; done 
+- NFS_IP_CSV="{{{nfsCommaSeparatedAddresses}}}" NFS_PATH="{{{nfsExportPath}}}" BASE_DIR="{{{nfsMountBaseDir}}}" /bin/bash {{{bootstrapBaseDir}}}{{{bootstrapScriptPath}}} 2>&1 | tee -a /var/log/bootstrap.log
+- umount {{{bootstrapBaseDir}}}
+- rmdir {{{bootstrapBaseDir}}}
