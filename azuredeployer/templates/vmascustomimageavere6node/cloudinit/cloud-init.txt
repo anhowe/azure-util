@@ -1,0 +1,9 @@
+#cloud-config
+
+runcmd:
+- echo "40.71.10.130 avereeastus.servicebus.windows.net" | tee -a /etc/hosts
+- mkdir -p {{{bootstrapBaseDir}}}
+- r=60 && for i in $(seq 1 $r); do mount -o "hard,nointr,proto=tcp,mountproto=tcp,retry=30" {{{bootstrapNFSIP}}}:{{{nfsExportPath}}} {{{bootstrapBaseDir}}} && break || [ $i == $r ] && break 0 || sleep 1; done 
+- NFS_IP_CSV="{{{nfsCommaSeparatedAddresses}}}" NFS_PATH="{{{nfsExportPath}}}" BASE_DIR="{{{nfsMountBaseDir}}}" /bin/bash {{{bootstrapBaseDir}}}{{{bootstrapScriptPath}}} 2>&1 | tee -a /var/log/bootstrap.log
+- umount {{{bootstrapBaseDir}}}
+- rmdir {{{bootstrapBaseDir}}}

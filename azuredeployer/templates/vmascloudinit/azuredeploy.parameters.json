@@ -1,0 +1,29 @@
+{
+  "uniquename": {
+    "value": "UNIQUENAME"
+  },
+  "adminUsername": {
+    "value": "azureuser"
+  },
+  "adminPassword": {
+    "value": "PASSWORD"
+  },
+  "subnetId": {
+    "value": "/subscriptions/SUBSCRIPTIONID/resourceGroups/averevfxt/providers/Microsoft.Network/virtualNetworks/vnet-averevfxt/subnets/batch"
+  },
+  "vmCount":{
+    "value": 1
+  },
+  "nfsCommaSeparatedAddresses": {
+    "value": "10.0.0.5,10.0.0.6,10.0.0.7"
+  },
+  "nfsExportPath": {
+    "value": "/msazure"
+  },
+  "nfsMountBaseDir": {
+    "value": "/nfs"
+  },
+  "bootstrapScriptPath": {
+    "value": "/bootstrap/bootstrap.copy.sh"
+  }
+}
