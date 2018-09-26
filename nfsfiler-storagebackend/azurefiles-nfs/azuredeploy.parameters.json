@@ -1,0 +1,24 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "uniqueName": {
+      "value": "fusenaseastus"
+    },
+    "sshKeyData": {
+      "value": "SSH_PUBLIC_KEY"
+    },
+    "subnetId": {
+      "value": "/subscriptions/SUBSCRIPTIONID/resourceGroups/fusenaseastus/providers/Microsoft.Network/virtualNetworks/vnet-fusenaseastus/subnets/subnet-fusenaseastus"
+    },
+    "storageAccountResourceGroupName": {
+      "value": "avereeastusstorage"
+    },
+    "storageAccountName": {
+      "value": "avereeastusstorage"
+    },
+    "storageFileShare": {
+      "value": "container1"
+    }
+  }
+}

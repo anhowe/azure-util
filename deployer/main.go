@@ -85,8 +85,8 @@ func main() {
 	resourceGroupCount := 1
 	vmsPerResourceGroup := 10
 
-	//deployer.Initialize("b52fce95-de5f-4b37-afca-db203a5d0b6a", "anhowe", startTime, "westus")
-	deployer.Initialize("646cce9f-0a1c-4acb-be06-401056b03659", "anhowe", startTime, "eastus", resourceGroupCount * vmsPerResourceGroup)
+	//deployer.Initialize("YOUR_SUBSCRIPTION_ID", "uniquename", startTime, "westus")
+	deployer.Initialize("YOUR_SUBSCRIPTION_ID", "uniquename", startTime, "eastus", resourceGroupCount * vmsPerResourceGroup)
 	log.Printf("starting deployment\n")
 	log.Printf("\tSubscriptionId: %s\n", deployer.SubscriptionId)
 	log.Printf("\tResourceGroupPrefix: %s\n", deployer.ResourceGroupNamePrefix)
