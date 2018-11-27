@@ -1,1 +1,0 @@
-go build && orchestrator --jobStartFileBasePath ../workfiles.anhowe
