@@ -7,11 +7,8 @@ import (
 	"os"
 	"path"
 	"time"
-)
 
-const (
-	AZURE_STORAGE_ACCOUNT = "AZURE_STORAGE_ACCOUNT"
-	AZURE_STORAGE_ACCOUNT_KEY = "AZURE_STORAGE_ACCOUNT_KEY"
+	"github.com/anhowe/azure-util/edasim/pkg/azure"
 )
 
 func usage(errs ...error) {
@@ -22,8 +19,8 @@ func usage(errs ...error) {
 	fmt.Fprintf(os.Stderr, "       write the job config file and posts to the queue\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "required env vars:\n")
-	fmt.Fprintf(os.Stderr, "\t%s - azure storage account\n", AZURE_STORAGE_ACCOUNT)
-	fmt.Fprintf(os.Stderr, "\t%s - azure storage account key\n", AZURE_STORAGE_ACCOUNT_KEY)
+	fmt.Fprintf(os.Stderr, "\t%s - azure storage account\n", azure.AZURE_STORAGE_ACCOUNT)
+	fmt.Fprintf(os.Stderr, "\t%s - azure storage account key\n", azure.AZURE_STORAGE_ACCOUNT_KEY)
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "options:\n")
 	flag.PrintDefaults()
@@ -39,18 +36,18 @@ func verifyEnvVar(envvar string) bool {
 
 func verifyEnvVars() bool {
 	available := true
-	available = available && verifyEnvVar(AZURE_STORAGE_ACCOUNT)
-	available = available && verifyEnvVar(AZURE_STORAGE_ACCOUNT_KEY)
+	available = available && verifyEnvVar(azure.AZURE_STORAGE_ACCOUNT)
+	available = available && verifyEnvVar(azure.AZURE_STORAGE_ACCOUNT_KEY)
 	return available
 }
 
 func getEnv(envVarName string) string {
 	s := os.Getenv(envVarName)
-	
+
 	if len(s) > 0 && s[0] == '"' {
 		s = s[1:]
 	}
-	
+
 	if len(s) > 0 && s[len(s)-1] == '"' {
 		s = s[:len(s)-1]
 	}
@@ -62,7 +59,7 @@ func initializeApplicationVariables() (string, string, int, string, string) {
 	var jobFilePath = flag.String("jobFilePath", "", "the job file path")
 	var uploaderQueueName = flag.String("uploaderQueueName", "", "the uploader job queue name")
 	var threadCount = flag.Int("threadCount", 1, "the number of concurrent threads uploading jobs")
-	
+
 	flag.Parse()
 
 	if envVarsAvailable := verifyEnvVars(); !envVarsAvailable {
@@ -70,8 +67,8 @@ func initializeApplicationVariables() (string, string, int, string, string) {
 		os.Exit(1)
 	}
 
-	storageAccount := getEnv(AZURE_STORAGE_ACCOUNT)
-	storageKey := getEnv(AZURE_STORAGE_ACCOUNT_KEY)
+	storageAccount := getEnv(azure.AZURE_STORAGE_ACCOUNT)
+	storageKey := getEnv(azure.AZURE_STORAGE_ACCOUNT_KEY)
 
 	if len(*jobFilePath) == 0 {
 		fmt.Fprintf(os.Stderr, "ERROR: jobFilePath is not specified\n")
@@ -90,7 +87,7 @@ func initializeApplicationVariables() (string, string, int, string, string) {
 		usage()
 		os.Exit(1)
 	}
-	
+
 	return *jobFilePath, *uploaderQueueName, *threadCount, storageAccount, storageKey
 }
 
@@ -100,13 +97,9 @@ func GetJobNamePath(fullJobPath string, jobCount int) string {
 	return path.Join(fullJobPath, jobName)
 }
 
-func UploadCompletedJobs() {
-	log.Printf("uploading completed jobs")
-}
-
 func main() {
 	jobFilePath, uploaderQueueName, threadCount, storageAccount, storageKey := initializeApplicationVariables()
-	
+
 	log.Printf("Starting job uploading\n")
 	log.Printf("\tJob Path: %s\n", jobFilePath)
 	log.Printf("\n")
@@ -116,9 +109,7 @@ func main() {
 	log.Printf("\tuploader queue name: %s\n", uploaderQueueName)
 	log.Printf("threadCount: %d\n", threadCount)
 
-	UploadCompletedJobs()
+	// TODO - implement worker
 
 	log.Printf("Uploader queue empty, completed uploading of jobs\n")
 }
-
-

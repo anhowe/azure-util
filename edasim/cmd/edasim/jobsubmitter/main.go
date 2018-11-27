@@ -10,8 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/anhowe/azure-util/cli"
-	"github.com/anhowe/azure-util/edasim/edasim"
+	"github.com/anhowe/azure-util/edasim/pkg/azure"
+	"github.com/anhowe/azure-util/edasim/pkg/cli"
+	"github.com/anhowe/azure-util/edasim/pkg/edasim"
 )
 
 func usage(errs ...error) {
@@ -22,8 +23,8 @@ func usage(errs ...error) {
 	fmt.Fprintf(os.Stderr, "       write the job config file and posts to the queue\n")
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "required env vars:\n")
-	fmt.Fprintf(os.Stderr, "\t%s - azure storage account\n", edasim.AZURE_STORAGE_ACCOUNT)
-	//fmt.Fprintf(os.Stderr, "\t%s - azure storage account key\n", edasim.AZURE_STORAGE_ACCOUNT_KEY)
+	fmt.Fprintf(os.Stderr, "\t%s - azure storage account\n", azure.AZURE_STORAGE_ACCOUNT)
+	fmt.Fprintf(os.Stderr, "\t%s - azure storage account key\n", azure.AZURE_STORAGE_ACCOUNT_KEY)
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "options:\n")
 	flag.PrintDefaults()
@@ -31,8 +32,8 @@ func usage(errs ...error) {
 
 func verifyEnvVars() bool {
 	available := true
-	available = available && cli.VerifyEnvVar(edasim.AZURE_STORAGE_ACCOUNT)
-	available = available && cli.VerifyEnvVar(edasim.AZURE_STORAGE_ACCOUNT_KEY)
+	available = available && cli.VerifyEnvVar(azure.AZURE_STORAGE_ACCOUNT)
+	available = available && cli.VerifyEnvVar(azure.AZURE_STORAGE_ACCOUNT_KEY)
 	return available
 }
 
@@ -42,7 +43,7 @@ func initializeApplicationVariables() (int, int, string, string, int, string, st
 	var jobBaseFilePath = flag.String("jobBaseFilePath", "", "the job file path")
 	var jobReadyQueueName = flag.String("jobReadyQueueName", edasim.QueueJobReady, "the job ready queue name")
 	var userCount = flag.Int("userCount", edasim.DefaultUserCount, "the number of concurrent users submitting jobs")
-	
+
 	flag.Parse()
 
 	if envVarsAvailable := verifyEnvVars(); !envVarsAvailable {
@@ -50,8 +51,8 @@ func initializeApplicationVariables() (int, int, string, string, int, string, st
 		os.Exit(1)
 	}
 
-	storageAccount := cli.GetEnv(edasim.AZURE_STORAGE_ACCOUNT)
-	storageKey := cli.GetEnv(edasim.AZURE_STORAGE_ACCOUNT_KEY)
+	storageAccount := cli.GetEnv(azure.AZURE_STORAGE_ACCOUNT)
+	storageKey := cli.GetEnv(azure.AZURE_STORAGE_ACCOUNT_KEY)
 
 	if len(*jobBaseFilePath) == 0 {
 		fmt.Fprintf(os.Stderr, "ERROR: jobBaseFilePath is not specified\n")
@@ -76,35 +77,21 @@ func initializeApplicationVariables() (int, int, string, string, int, string, st
 		usage()
 		os.Exit(1)
 	}
-	
+
 	return *jobCount, *jobFileConfigSizeKB, *jobBaseFilePath, *jobReadyQueueName, *userCount, storageAccount, storageKey
 }
 
-func GetBatchName(jobCount int) string {
+func getBatchName(jobCount int) string {
 	t := time.Now()
 	return fmt.Sprintf("job-%02d-%02d-%02d-%02d%02d%02d-%d", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), jobCount)
 }
 
-func GenerateJobs(jobSubmitters []*edasim.JobSubmitter) {
-	log.Printf("starting to generate jobs")
-
-	userSyncWaitGroup := sync.WaitGroup{}
-	userSyncWaitGroup.Add(len(jobSubmitters))
-
-	for _, jobSubmitter := range jobSubmitters {
-		go jobSubmitter.Run(&userSyncWaitGroup)
-	}
-
-	userSyncWaitGroup.Wait()
-	log.Printf("completed job generation")
-}
-
 func main() {
 	jobCount, jobFileConfigSizeKB, jobBaseFilePath, jobReadyQueueName, userCount, storageAccount, storageKey := initializeApplicationVariables()
-	
-	batchName := GetBatchName(jobCount)
+
+	batchName := getBatchName(jobCount)
 	jobNamePath := path.Join(jobBaseFilePath, batchName)
-		
+
 	if e := os.MkdirAll(jobNamePath, os.ModePerm); e != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: unable to create directory '%s': %v\n", jobNamePath, e)
 		usage()
@@ -115,28 +102,29 @@ func main() {
 	log.Printf("File Details:\n")
 	log.Printf("\tJob Path: %s\n", jobNamePath)
 	log.Printf("\tJob Filesize: %d\n", jobFileConfigSizeKB)
-	log.Printf("\n")
-	log.Printf("Storage Details:\n")
-	log.Printf("\tstorage account: %s\n", storageAccount)
-	log.Printf("\tstorage account key: %s\n", storageKey)
-	log.Printf("\tjob queue name: %s\n", jobReadyQueueName)
 	log.Printf("usercount: %d\n", userCount)
 
 	jobSubmitters := make([]*edasim.JobSubmitter, 0, userCount)
 	jobsPerUser := jobCount / userCount
 	jobsPerUserMod := jobCount % userCount
 
-	for i :=0; i < userCount; i++ {
-		storageQueue := edasim.InitializeStorageQueue(storageAccount, storageKey, edasim.QueueJobReady, context.Background())
+	for i := 0; i < userCount; i++ {
+		storageQueue := azure.InitializeQueue(context.Background(), storageAccount, storageKey, jobReadyQueueName)
 		extrajob := 0
 		if i < jobsPerUserMod {
 			extrajob = 1
 		}
-		jobSubmitter := edasim.InitializeJobSubmitter(batchName, i, storageQueue, jobsPerUser + extrajob, jobNamePath, jobFileConfigSizeKB)
+		jobSubmitter := edasim.InitializeJobSubmitter(batchName, i, storageQueue, jobsPerUser+extrajob, jobNamePath, jobFileConfigSizeKB)
 		jobSubmitters = append(jobSubmitters, jobSubmitter)
 	}
 
-	GenerateJobs(jobSubmitters)
+	userSyncWaitGroup := sync.WaitGroup{}
+	userSyncWaitGroup.Add(len(jobSubmitters))
 
+	for _, jobSubmitter := range jobSubmitters {
+		go jobSubmitter.Run(&userSyncWaitGroup)
+	}
+
+	userSyncWaitGroup.Wait()
 	log.Printf("Completed generation of %d jobs\n", jobCount)
 }
