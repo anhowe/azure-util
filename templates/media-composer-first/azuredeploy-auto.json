@@ -1,0 +1,173 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "uniqueName": {
+      "type": "string",
+      "maxLength": 12,
+      "metadata": {
+        "description": "The unique name used for the Windows 10 VM and associated resource names."
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_NV6",
+      "metadata": {
+        "description": "Size of the Windows 10 VM."
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "azureuser",
+      "metadata": {
+        "description": "Admin username on the Windows 10 VM."
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Password for the Windows 10 VM."
+      }
+    },
+    "subnetId": {
+      "type": "string",
+      "metadata": {
+        "description": "The fully qualified reference to the subnet of the Avere vFXT cluster.  Example /subscriptions/SUBSCRIPTION/resourceGroups/RESOURCEGROUP/providers/Microsoft.Network/virtualNetworks/NETWORK_NAME/subnets/SUBNET_NAME."
+      }
+    }
+  },
+  "variables": {
+    "uniqueName": "[parameters('uniqueName')]",
+    "vmSize": "[parameters('vmSize')]",
+    "adminUsername": "[parameters('adminUsername')]",
+    "adminPassword": "[parameters('adminPassword')]",    
+    "subnetId": "[parameters('subnetId')]",
+    "mediaComposerURL": "http://cdn.avid.com/ThirdParty/NewBlue/Titler_Pro/4C92133D/NewBluePrime-170707.zip",
+    "nicName": "[concat('vmnic-',variables('uniqueName'))]",
+    "publicIPAddressName": "[concat('publicip-',variables('uniqueName'))]",
+    "vmName": "[concat('vm-',variables('uniqueName'))]",
+    "imageReference": {
+      "publisher": "MicrosoftWindowsDesktop",
+      "offer": "Windows-10",
+      "sku": "rs5-pro",
+      "version": "latest"
+    },
+    "singleQuote": "'",
+    "windowsCustomScriptArguments": "[concat('$arguments = ',variables('singleQuote'),'-MediaComposerURL ',variables('mediaComposerURL'),variables('singleQuote'),' ; ')]",
+    "windowsCustomScriptSuffix": " $inputFile = '%SYSTEMDRIVE%\\AzureData\\CustomData.bin' ; $outputFile = '%SYSTEMDRIVE%\\AzureData\\CustomDataSetupScript.ps1' ; $inputStream = New-Object System.IO.FileStream $inputFile, ([IO.FileMode]::Open), ([IO.FileAccess]::Read), ([IO.FileShare]::Read) ; $sr = New-Object System.IO.StreamReader(New-Object System.IO.Compression.GZipStream($inputStream, [System.IO.Compression.CompressionMode]::Decompress)) ; $sr.ReadToEnd() | Out-File($outputFile) ; Invoke-Expression('{0} {1}' -f $outputFile, $arguments) ; ",
+    "windowsCustomScript": "[concat('powershell.exe -ExecutionPolicy Unrestricted -command \"', variables('windowsCustomScriptArguments'), variables('windowsCustomScriptSuffix'), '\"')]"
+  },
+  "resources": [
+    {
+      "apiVersion": "2018-02-01",
+      "name": "pid-bc1e25ec-4990-4a2d-a035-a332bebc3ded",
+      "type": "Microsoft.Resources/deployments",
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": []
+        }
+      }
+    },
+    {
+      "apiVersion": "2017-10-01",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[variables('publicIPAddressName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "publicIPAllocationMethod": "Static"
+      }
+    },
+    {
+      "apiVersion": "2017-10-01",
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[variables('nicName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses',variables('publicIPAddressName'))]"
+              },
+              "subnet": {
+                "id": "[variables('subnetId')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "2017-12-01",
+      "tags": {
+        "averevfxt": "client"
+      },
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[variables('vmName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[variables('vmSize')]"
+        },
+        "osProfile": {
+          "computername": "[variables('vmName')]",
+          "adminUsername": "[variables('adminUsername')]",
+          "adminPassword": "[variables('adminPassword')]",
+          "customData": "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"
+        },
+        "storageProfile": {
+          "imageReference": "[variables('imageReference')]"
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',variables('nicName'))]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(variables('vmName'),'/installcustomscript')]",
+      "apiVersion": "2017-12-01",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Compute/virtualMachines/', variables('vmName'))]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.9",
+        "settings": {
+          "commandToExecute": "[concat(variables('windowsCustomScript'),' > %SYSTEMDRIVE%\\AzureData\\CustomDataSetupScript.log 2>&1')]"
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "RESOURCE_GROUP": {
+      "type": "string",
+      "value": "[resourceGroup().name]"
+    },
+    "LOCATION": {
+      "type": "string",
+      "value": "[resourceGroup().location]"
+    },
+    "CLIENT_RDP_ADDRESS": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName'))).ipAddress]"
+    }
+  }
+}

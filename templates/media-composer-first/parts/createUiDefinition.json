@@ -1,0 +1,125 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+    "handler": "Microsoft.Compute.MultiVm",
+    "version": "0.1.2-preview",
+    "parameters": {
+      "basics": [
+        {
+          "name": "prereqs",
+          "type": "Microsoft.Common.TextBlock",
+          "visible": true,
+          "options": {
+            "text": "Avid Media Composer First Azure Installation - this installs an Avid Media Composer First Windows 10 Workstation",
+            "link": {
+              "label": "Read more",
+              "uri": "https://www.avid.com/products/media-composer-cloud-remote"
+            }
+          }
+        },
+        {
+          "name": "workstationName",
+          "type": "Microsoft.Common.TextBox",
+          "label": "Workstation name",
+          "toolTip": "The unique name used for the Avid Media Composer First Windows 10 Workstation.",
+          "constraints": {
+            "required": true,
+            "regex": "^[a-z]([-a-z0-9]*[a-z0-9]){0,31}$",
+            "validationMessage": "Only lowercase alphanumeric characters are allowed, and the value must be 1-32 characters long."
+          },
+          "visible": true
+        },
+        {
+          "name": "workstationUsername",
+          "type": "Microsoft.Compute.UserNameTextBox",
+          "label": "Workstation username",
+          "defaultValue": "azureuser",
+          "toolTip": "Administrative username for the Avid Media Composer First Windows 10 Workstation.",
+          "osPlatform": "Windows",
+          "constraints": {
+            "required": true,
+            "regex": "^[a-z][-a-z0-9]*$"
+          }
+        },
+        {
+          "name": "workstationPassword",
+          "type": "Microsoft.Compute.CredentialsCombo",
+          "label": {
+            "password": "Password",
+            "confirmPassword": "Confirm password"
+          },
+          "toolTip": {
+            "password": ""
+          },
+          "constraints": {
+            "required": true,
+            "customPasswordRegex": "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{12,}$",
+            "customValidationMessage": "The password must contain at least 12 characters, with at least 1 letter and 1 number."
+          },
+          "options": {
+            "hideConfirmation": false
+          },
+          "osPlatform": "Windows",
+          "visible": true
+        }
+      ],
+      "steps": [
+        {
+          "name": "NetworkConfiguration",
+          "label": "Windows Workstation Network Configuration",
+          "subLabel": {
+            "preValidation": "Configure the Windows Workstation Network",
+            "postValidation": "Done"
+          },
+          "bladeTitle": "Network Configuration",
+          "elements": [
+            {
+              "name": "virtualNetwork",
+              "type": "Microsoft.Network.VirtualNetworkCombo",
+              "label": {
+                "virtualNetwork": "Virtual network",
+                "subnets": "Subnets"
+              },
+              "toolTip": {
+                "virtualNetwork": "Name of the virtual network",
+                "subnets": "Subnets for the virtual network"
+              },
+              "defaultValue": {
+                "name": "VirtualNetwork",
+                "addressPrefixSize": "/16"
+              },
+              "constraints": {
+                "minAddressPrefixSize": "/24"
+              },
+              "subnets": {
+                "subnet1": {
+                  "label": "Subnet",
+                  "defaultValue": {
+                    "name": "Subnet",
+                    "addressPrefixSize": "/24"
+                  },
+                  "constraints": {
+                    "minAddressPrefixSize": "/28",
+                    "minAddressCount": 12,
+                    "requireContiguousAddresses": true
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "outputs": {
+        "controllerName": "[basics('workstationName')]",
+        "controllerAdminUsername": "[basics('workstationUsername')]",
+        "workstationPassword": "[basics('workstationPassword').password]",
+        "workstationInstanceType": "[basics('instanceType')]",
+
+        "createVirtualNetwork": "[contains(steps('NetworkConfiguration').virtualNetwork.newOrExisting, 'new')]",
+        "virtualNetworkResourceGroup": "[steps('NetworkConfiguration').virtualNetwork.resourceGroup]",
+        "virtualNetworkName": "[steps('NetworkConfiguration').virtualNetwork.name]",
+        "virtualNetworkSubnetName": "[steps('NetworkConfiguration').virtualNetwork.subnets.subnet1.name]",
+        "vnetAddressSpacePrefix": "[first(steps('NetworkConfiguration').virtualNetwork.addressPrefixes)]",
+        "subnetAddressRangePrefix": "[steps('NetworkConfiguration').virtualNetwork.subnets.subnet1.addressPrefix]"
+      }
+    }
+  }
