@@ -9,9 +9,16 @@
         "description": "The Azure location where the resources are deployed.  If blank, resourceGroup().location is used."
       }
     },
-    "sshRSAPublicKey": {
+    "customImageID": {
       "type": "string",
       "defaultValue": "",
+      "metadata": {
+        "description": "The custom image, this is optional, otherwise centos will be used."
+      }
+    },
+    "sshRSAPublicKey": {
+      "type": "string",
+      "defaultValue": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC8fhkh3jpHUQsrUIezFB5k4Rq9giJM8G1Cr0u2IRMiqG++nat5hbOr3gODpTA0h11q9bzb6nJtK7NtDzIHx+w3YNIVpcTGLiUEsfUbY53IHg7Nl/p3/gkST3g0R6BSL7Hg45SfyvpH7kwY30MoVHG/6P3go4SKlYoHXlgaaNr3fMwUTIeE9ofvyS3fcr6xxlsoB6luKuEs50h0NGsE4QEnbfSY4Yd/C1ucc3mEw+QFXBIsENHfHfZYrLNHm2L8MXYVmAH8k//5sFs4Migln9GiUgEQUT6uOjowsZyXBbXwfT11og+syPkAq4eqjiC76r0w6faVihdBYVoc/UcyupgH",
       "metadata": {
         "description": "SSH public key used for auth to all Linux machines.  Not Required.  If not set, you must provide a password key."
       }
@@ -21,7 +28,7 @@
     "location": "[parameters('location')]",
     "sshRSAPublicKey": "[parameters('sshRSAPublicKey')]",
     "adminUsername": "azureuser",
-    "storageProfile": {
+    "storageProfileDefault": {
       "imageReference": {
         "publisher": "OpenLogic",
         "offer": "CentOS",
@@ -29,6 +36,12 @@
         "version": "latest"
       }
     },
+    "storageProfileCustomImage": {
+      "imageReference": {
+        "id": "[parameters('customImageID')]"
+      }
+    },
+    "storageProfile": "[if(greater(length(parameters('customImageID')), 0), variables('storageProfileCustomImage'), variables('storageProfileDefault'))]",
     "ownerRoleId": "8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
     "ownerRoleFullyQualifiedId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', variables('ownerRoleId'))]",
     "createRoleAssignmentId": "[guid(resourceGroup().id)]",
@@ -40,7 +53,7 @@
     "publicIPAddressName": "myPublicIP",
     "vmName": "linuxvm",
     "storageAccountName": "[resourceGroup().name]",
-    "vmSize": "Standard_A1_v2",
+    "vmSize": "Standard_F16S_V2",
     "virtualNetworkName": "MyVNET",
     "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('virtualNetworkName'))]",
     "subnetRef": "[concat(variables('vnetID'),'/subnets/',variables('subnetName'))]",
