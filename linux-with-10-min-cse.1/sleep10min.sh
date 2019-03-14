@@ -83,12 +83,21 @@ function config_linux() {
     pip install --requirement /opt/avere/python_requirements.txt
 }
 
-function main() {
-    echo "wait arm endpoint"
-    wait_arm_endpoint
+function dump_ps() {
+    ps ax > /tmp/ps/`date +"%H.%M.%S.%N"`
+}
 
-    echo "configure linux"
-    config_linux
+function main() {
+    mkdir -p /tmp/ps
+
+    echo "wait arm endpoint"
+    dump_ps
+    wait_arm_endpoint
+    
+    echo "`date` - configure linux"
+    #config_linux
+    dump_ps
+    apt-get update
 
     sleep_10_minutes
 }
