@@ -1,5 +1,8 @@
 #!/bin/bash -x
 
+set -x
+set -e
+
 function sleep_10_minutes() {
     retries=120
     apt_update_output=/tmp/apt-get-update.out
