@@ -5,6 +5,21 @@ set -e
 
 ARM_ENDPOINT=https://management.azure.com/metadata/endpoints?api-version=2017-12-01
 
+function retrycmd_if_failure() {
+    retries=$1; max_wait_sleep=$2; shift && shift
+    for i in $(seq 1 $retries); do
+        ${@}
+        [ $? -eq 0  ] && break || \
+        if [ $i -eq $retries ]; then
+            echo Executed \"$@\" $i times;
+            return 1
+        else
+            sleep $(($RANDOM % $max_wait_sleep))
+        fi
+    done
+    echo Executed \"$@\" $i times;
+}
+
 function wait_arm_endpoint() {
     # ensure the arm endpoint is reachable
     # https://docs.microsoft.com/en-us/azure/virtual-machines/windows/instance-metadata-service#getting-azure-environment-where-the-vm-is-running
