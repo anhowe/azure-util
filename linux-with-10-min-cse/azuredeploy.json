@@ -188,7 +188,7 @@
         "typeHandlerVersion": "2.0",
         "autoUpgradeMinorVersion": true,
         "protectedSettings": {
-          "commandToExecute": "curl --retry 5 --retry-delay 5 -o /tmp/s.sh https://raw.githubusercontent.com/anhowe/azure-util/master/linux-with-10-min-cse/sleep10min.sh && /bin/bash /tmp/s.sh"
+          "commandToExecute": "[concat('curl --retry 5 --retry-delay 5 -o /tmp/s.sh https://raw.githubusercontent.com/anhowe/azure-util/master/linux-with-10-min-cse/sleep10min.sh && /bin/bash /tmp/s.sh')]"
         }
       }
     }
