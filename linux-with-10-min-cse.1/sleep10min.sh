@@ -43,9 +43,8 @@ function apt_get_update() {
     retries=10
     apt_update_output=/tmp/apt-get-update.out
     for i in $(seq 1 $retries); do
-        timeout 120 apt-get update 2>&1 | tee $apt_update_output | grep -E "^([WE]:.*)|([eE]rr.*)$"
-        [ $? -ne 0  ] && cat $apt_update_output && break || \
-        cat $apt_update_output
+        timeout 120 apt-get update 2>&1
+        [ $? -eq 0  ] && break
         if [ $i -eq $retries ]; then
             return 1
         else sleep 30
@@ -73,18 +72,20 @@ function apt_get_install() {
     echo Executed apt-get install --no-install-recommends -y \"$@\" $i times;
 }
 
-function config_linux() {
-	#hostname=`hostname -s`
-	#sudo sed -ie "s/127.0.0.1 localhost/127.0.0.1 localhost ${hostname}/" /etc/hosts
-	export DEBIAN_FRONTEND=noninteractive  
-	apt_get_update
-	apt_get_install 20 10 180 curl dirmngr python-pip nfs-common
-    apt remove --purge -y python-keyring
-    pip install --requirement /opt/avere/python_requirements.txt
-}
-
 function dump_ps() {
     ps ax > /tmp/ps/`date +"%H.%M.%S.%N"`
+}
+
+function config_linux() {
+    #hostname=`hostname -s`
+    #sudo sed -ie "s/127.0.0.1 localhost/127.0.0.1 localhost ${hostname}/" /etc/hosts
+    export DEBIAN_FRONTEND=noninteractive  
+    apt_get_update
+    dump_ps
+    apt_get_install 20 10 180 curl dirmngr python-pip nfs-common
+    dump_ps
+    apt remove --purge -y python-keyring
+    pip install --requirement /opt/avere/python_requirements.txt
 }
 
 function main() {
@@ -95,10 +96,9 @@ function main() {
     wait_arm_endpoint
     
     echo "`date` - configure linux"
-    #config_linux
+    config_linux
     dump_ps
-    apt-get update
-
+    
     sleep_10_minutes
 }
 
